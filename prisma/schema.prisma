@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model meta {
+  id        String @id @default(uuid())
+  key       Int  @default(1)
+  maintenance   Boolean @default(false)
+  iosVersion String?
+  androidVersion String?
+  @@index([key])
+}
+
+model SuperUser {
+  id        String    @id
+  name      String
+  email     String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  type      SuperUserType   @default(ADMIN)
+  @@unique([email, id])
+}
+
+enum SuperUserType {
+  ADMIN
+  FINANCE
+  MODERATOR
+  APPROVAL
+}
+model User {
+  id          String      @id
+  name        String
+  email       String      
+  number      String      
+  password    String
+  facebook    String?  // Optional
+  instagram   String?  // Optional
+  gender      Gender?  // Optional (e.g., "Male", "Female", "Other")
+  picture     String?  // Optional URL to user's profile picture
+  type        UserType
+  notificationToken String?
+  wallet      Wallet?
+  tickets     TicketPurchase[]
+  isDeleted   Boolean @default(false)
+  requests    EventRequest[]
+  favoriteEvents String[]
+  status      UserStatus @default(ACTIVE)
+  deletedAt   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([email, number, id])
+  @@index([email, number])
+  Notifications Notifications[]
+}
+
+model Invitation {
+  id          String      @id @unique
+  name        String
+  email       String
+  number      String
+
+  //only for paid one
+  ticketId    String?
+  payment     PaymentStatus?
+  paymentReference String?
+
+  type        String // if paid use above, else don't consider them
+  status      InvitationStatus @default(UPCOMMING)
+  eventId     String
+
+  createdAt   DateTime    @default(now())
+  updateAt    DateTime    @updatedAt
+  @@index([eventId, id, ticketId, paymentReference])
+}
+
+model Event {
+  id          String          @id @unique
+  title       String
+  description String
+  location    String
+  image       String?      // Optional URL to event image
+  date        DateTime
+  time        String       // Optional for storing specific time details if needed
+  status      EventStatus
+  capacity    Int          // Max number of attendees allowed
+  artists     String[]       // Artist or performer name
+  tickets     Ticket[]
+  coordinates Json?
+  createdBy   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  requests   EventRequest[]
+  @@index([id, status])
+}
+
+
+model Ticket {
+  id          String          @id
+  title       String
+  description String
+  price       Float
+  capacity    Int
+  eventId     String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  deletedAt   String?
+
+  @@index([eventId])
+  TicketPurchase TicketPurchase[]
+}
+
+model EventRequest {
+  id          String        @id
+  userId      String
+  eventId     String
+  meta        Json          // this have the ticket info
+  status      RequestStatus @default(BOOKED)
+  event       Event         @relation(fields: [eventId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updateAt    DateTime @updatedAt
+  @@index([eventId])
+}
+
+model Notifications {
+  id          String      @id @unique
+  name        String
+  description String
+  users       User[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([name])
+}
+model TicketPurchase {
+  id          String          @id @unique
+  userId      String
+  ticketId    String
+  createdAt   DateTime @default(now())
+  updateAt    DateTime @updatedAt
+  payment     PaymentStatus?
+  status      TicketStatus
+  meta        Json?
+  paymentReference String?
+  ticket          Ticket          @relation(fields: [ticketId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  @@index([userId, id])
+}
+
+model Wallet {
+  id          String       @id
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  balance     Int       @default(0)
+  transactions  walletTransactions[]
+}
+
+model walletTransactions {
+  id        String       @id
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  from      String
+  to        String
+  status    PaymentStatus
+  amount    Int
+  tokenPrice Float // referance for the token price in the time of the transaction
+  walletId  String
+  Wallet    Wallet @relation(fields: [walletId], references: [id])
+}
+
+model WalletToken {
+  id         Int      @id @default(autoincrement())
+  tokenPrice Float    @default(0.05)
+  usd_price  Float?   @default(49.30)
+  createdAt  DateTime @default(now())
+  updateAt   DateTime @updatedAt
+}
+
+model Newspaper {
+  id          String    @id
+  title       String
+  description String
+  image       String?
+  status      NewsStatus
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum UserType {
+  USER
+  READER
+  BOOTH
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum TicketStatus {
+  UPCOMMING
+  ATTENDED
+  PAST_DUE
+}
+
+enum InvitationStatus {
+  UPCOMMING
+  ATTENDED
+}
+
+enum RequestStatus {
+  BOOKED
+  APPROVED
+  DECLINED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  UN_PAID
+}
+
+enum EventStatus {
+  DRAFTED
+  PUBLISHED
+  ENDED
+  CANCLED
+  DELETED
+}
+
+enum NewsStatus {
+  DRAFTED
+  PUBLISHED
+  DELETED
+}
+
+enum Gender {
+  Male
+  Female
+}
